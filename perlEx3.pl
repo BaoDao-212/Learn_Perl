@@ -27,17 +27,17 @@ if ($help or not defined $input) {
 }
 my %data = ();
 readdata($input, \%data);
-#  print Dumper \%data;
+  # print Dumper \%data;
+###SUB###
 ###SUB###
 sub readdata{
     my ($input, $ptr) = @_;
-  open IN, "$input" or die "$input $!";
+  open IN ,"$input" or die "$input $!";
   my $title = '';
-  my $corner;
+   my $corner;
   my $endcorner;
   while (<IN>) {
-    chomp;  
-      
+    chomp;
    if (/\.title/) {
       $title = <IN>;
       chomp $title;
@@ -50,7 +50,7 @@ sub readdata{
       my @tmp = split / /, $header;
       push @{$ptr->{$title}->{header}}, @tmp;
     }
-    elsif($title and !/\.data|\.enddata/ ){
+    elsif($title and !/\.data|\.enddata/  ){
       s/( +|\s+|\t+)$//g;
       s/( +|\s+|\t+)/ /g;
       my @line = split / /, $_;
@@ -75,7 +75,8 @@ sub readdata{
     }
      elsif (/\.enddata/) {
       $title = '';
-    }else{
+    } 
+     else {
     $corner=tell if ($_=~/^.corner/) ;
     $endcorner=tell if ($_ =~/^.endcorner/);
     }
@@ -84,15 +85,15 @@ sub readdata{
   my $kill;
   seek(IN,$corner,SEEK_SET);
     read IN,$kill,($endcorner-$corner-11);
-    print $kill;
     my @cornerline= split(/\n/,$kill);
     foreach my $line(@cornerline){
       chomp($line);
-      my @element=split(/(\s+)/,$line);
+     $line=~s/( +|\s+|\t+)$//g;
+      $line=~s/( +|\s+|\t+)/ /g;
+      my @element=split(/ /,$line);
       $ptr->{corner}->{$element[0]}=[@element[1..3]];
-      print @element;
     }
-  close(IN)
+  close(IN);
 }
 
 sub getCase {

@@ -1,19 +1,13 @@
 # Example 03: write scipt to store all
 #data in the file textEx2.txt to a hash. 
 # Print this hash's content to screen.
-
-
-
-
-
-
-
 #####################################################
 ### Define lib ###
 use warnings;
 use strict;
 use Getopt::Long;
 use Data::Dumper;
+use Fcntl qw(SEEK_SET SEEK_CUR SEEK_END); 
 ### End lib ###
 my $help = '';
 
@@ -30,16 +24,18 @@ if ($help or not defined $input) {
   PrintHelp();
 }
 my %data = ();
+my @ele;
+my @header;
+my $l="";
 readdata($input, \%data);
-  # print Dumper \%data;
 writedata($output,\%data);
-
-
 ###SUB###
 sub readdata{
     my ($input, $ptr) = @_;
   open IN ,"$input" or die "$input $!";
   my $title = '';
+   my $corner;
+  my $endcorner;
   while (<IN>) {
     chomp;
    if (/\.title/) {
@@ -79,105 +75,99 @@ sub readdata{
     }
      elsif (/\.enddata/) {
       $title = '';
+    } 
+     else {
+    $corner=tell if ($_=~/^.corner/) ;
+    $endcorner=tell if ($_ =~/^.endcorner/);
     }
+    
   }
+  my $kill;
+  seek(IN,$corner,SEEK_SET);
+  read IN,$kill,($endcorner-$corner-11);
+  my @cornerline= split(/\n/,$kill);
+  foreach my $line(@cornerline){
+    chomp($line);
+    $line=~s/( +|\s+|\t+)$//g;
+    $line=~s/( +|\s+|\t+)/ /g;
+    my @element=split(/ /,$line);
+    $ptr->{corner}->{$element[0]}=[@element[1..3]];
+}
   close(IN);
 }
 
 sub getCase {
   my ($keys, $vals, $ptr, $num) = @_;
   if ($num == scalar @{$keys->[0]} - 1) {
-    for (my $i=0;$i<scalar @{$vals->[0]};++$i) {
+    for (my $i=0;$i<scalar @{$vals->[0]};++$i) 
+    {
       $ptr->{$keys->[0]->[$num]}->{$vals->[1]->[$i]} = $vals->[0]->[$i];
     }
   }
-  else {
+  else 
+  {
     getCase($keys, $vals, \%{$ptr->{$keys->[0]->[$num]}}, $num+1);
   }
 }
 sub writedata{
     my($output,$ptr)=@_;
     open (OUT,'>',"$output") or die "$output $!";
+    say OUT "\#Rev_1.0\n\.corner";
+    my $n=0;
+    foreach my $corner(keys %{$ptr->{corner}}) 
+    {
+      my @vals= @{$ptr->{corner}->{$corner}};
+      my $line=$corner."\t".join("\t",@vals);
+      $n++;
+      say OUT $line;
+      say OUT ".endcorner" if $n==6;
+     }
    foreach my $title(keys %data){
-    say OUT ".title";
-    say OUT $title;
-    say OUT ".header";
-    my @header=@{$ptr->{$title}->{header}};
-    my $lineheader =join ("\t",@header);
-    say OUT $lineheader;
-    say OUT ".data";
-     my $numheader= scalar @{$ptr->{$title}->{header}};
-    if($numheader==3){
-      foreach my $key1(keys %{$ptr->{$title}->{data}}){
-        for my $key2(keys %{$ptr->{$title}->{data}->{$key1}})
+    unless($title=~/corner/){ 
+        my $numkey=0;
+        $l="";
+        @header=@{$ptr->{$title}->{header}};
+        my $lineheader =join ("\t",@header);
+        foreach my $head(@header)
         {
-           for my $ele (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}}) 
-          {
-            my $line3 = "$key1\t$key2\t $ptr->{$title}->{data}->{$key1}->{$key2}->{$ele}" ;
-          say OUT $line3;
-          }
+          $numkey=$numkey+1 if($head =~/^($key)$/);
         }
+        say OUT "\.title\n$title\n\.header\n$lineheader\.data";
+        getLine(\%{$ptr->{$title}->{data}},$numkey,1);
+        my @Rline=split("\n",$l);
+        foreach my $line(@Rline)
+        {
+          say OUT $line;
+        }
+        say OUT "\.enddata";
       }
-    }
-    elsif($numheader==4){
-      foreach my $key1(keys %{$ptr->{$title}->{data}}){
-        
-        for my $key2(keys %{$ptr->{$title}->{data}->{$key1}})
-        {
-           for my $key3 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}}) 
-          { 
-           for my $key4 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}}) 
-           { 
-            my $line4 = "$key1\t$key2\t$key3\t $ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}->{$key4}" ;
-            say OUT $line4;
-          }
-          }
-        }
-    }
    }
-    elsif($numheader==5){
-      foreach my $key1(keys %{$ptr->{$title}->{data}}){
-        
-        for my $key2(keys %{$ptr->{$title}->{data}->{$key1}})
+  close OUT;
+}
+sub getLine{
+  my($ptr,$numkey,$num)=@_;
+  foreach my $key(sort keys %{$ptr})
+  { 
+      $ele[$num]=$key;
+      if($num==$numkey)
+      {
+        $l.=join("\t",@ele[1..$numkey])."\t$ptr->{$key}->{blpchdly}\n"if($numkey==2) ; 
+        $l.=join("\t",@ele[1..$numkey])."\t$ptr->{$key}->{output_current}\n"if($numkey==3 or ($numkey==4 and $#header<10)) ; 
+        if($#header>10)
         {
-           for my $key3 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}}) 
-          { 
-           for my $key4 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}}) 
-           {  
-            for my $key5 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}->{$key4}}) 
-           { 
-            my $line5 = "$key1\t$key2\t$key3\t$key4 $ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}->{$key4}->{$key5}" ;
-            say OUT $line5;
+          $l.=join("\t",@ele[1..4]);
+          my $count=4;
+          for my $k(keys %{$ptr->{$key}}){
+            $l.="\t$ptr->{$key}->{$header[$count++]}";
           }
-           }
-          }
-        }
+          $l.="\n";
+        } 
+      } 
+      else
+       {
+         getLine(\%{$ptr->{$key}},$numkey,$num+1);
+       }
     }
-   }
-    else{
-       foreach my $key1(keys %{$ptr->{$title}->{data}}){
-        
-        for my $key2(keys %{$ptr->{$title}->{data}->{$key1}})
-        {
-           for my $key3 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}}) 
-          { 
-           for my $key4 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}}) 
-           {  
-            my $line5 = "$key1\t$key2\t$key3\t$key4" ;
-            my $i=4;
-            for my $key5 (keys %{$ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}->{$key4}}) 
-           { 
-            $line5.="\t$ptr->{$title}->{data}->{$key1}->{$key2}->{$key3}->{$key4}->{$header[$i++]}"
-          }
-            say OUT $line5;
-           }
-          }
-        }
-    }
-    }
-    say OUT "\.enddata";
-   }
-    close OUT;
 }
 
     ###PrintHelp()###
